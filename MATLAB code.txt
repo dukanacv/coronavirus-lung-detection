@@ -1,0 +1,78 @@
+function test(slika)
+
+clc;  
+close all;  
+imtool close all; 
+clear;  
+workspace; 
+format long g;
+format compact;
+fontSize = 22;
+
+%gr1.jpg, covid_chest1.JPG, normal_chest1.JPG
+grayscaleSlika = imread("covid_chest1.JPG");%grayscale slika
+[rows, columns, numberOfColorBands] = size(grayscaleSlika);
+if numberOfColorBands > 1
+	grayscaleSlika = grayscaleSlika(:, :, 2);
+end
+subplot(2, 2, 1);
+imshow(grayscaleSlika);
+title('Originalna grayscale', 'FontSize', fontSize);
+set(gcf, 'Units', 'Normalized', 'OuterPosition', [0 0 1 1]);
+set(gcf, 'Name', 'Demo', 'NumberTitle', 'Off') 
+
+
+binarnaSlika = grayscaleSlika < 107;%binarna slika, pikseli manji od 110, tj. zdrav deo pluca
+subplot(2, 2, 2);
+imshow(binarnaSlika);
+title('Binarna', 'FontSize', fontSize);
+
+
+binarnaSlika = imclearborder(binarnaSlika);%obrisi ono sto dodiruje border
+binarnaSlika = ExtractNLargestBlobs(binarnaSlika, 2);%izdvoj 2 najvece celine samo
+binarnaSlika = imfill(binarnaSlika, 'holes');%popuni rupe
+zdravDeo = sum(binarnaSlika(:))
+subplot(2, 2, 3);
+imshow(binarnaSlika);
+title(zdravDeo, 'FontSize', fontSize);
+
+
+maska = grayscaleSlika; %inicijalizacija
+maska(~binarnaSlika) = 0;
+subplot(2, 2, 4);
+imshow(maska);
+title('Maska', 'FontSize', fontSize);
+
+end
+
+
+
+% funkcija za vadjenje najmanje ili najvece celine na binarnoj slici
+% If numberToExtract > 0 vraca najvece celine
+% If numberToExtract < 0 vraca najmanje celine
+function binarnaSlika = ExtractNLargestBlobs(binarnaSlika, numberToExtract)
+try
+	[labeledImage, brojCelina] = bwlabel(binarnaSlika);
+	dimenzijeCeline = regionprops(labeledImage, 'area');
+	allAreas = [dimenzijeCeline.Area];
+	if numberToExtract > length(allAreas);
+		numberToExtract = length(allAreas);
+	end
+	if numberToExtract > 0% za pozitivne brojeve sortiraj od najveceg do najmanjeg
+		[sortedAreas, sortIndexes] = sort(allAreas, 'descend');
+	elseif numberToExtract < 0%za negativne obrnuto
+		[sortedAreas, sortIndexes] = sort(allAreas, 'ascend');%negiramo brojeve kod najmanjeg da bi imali posle kao indeks
+		numberToExtract = -numberToExtract;
+	else
+		% numberToExtract = 0 ne sme da se desi, ona ne vraca nista
+		binarnaSlika = false(size(binarnaSlika));
+		return;
+    end
+	najvecaCelina = ismember(labeledImage, sortIndexes(1:numberToExtract));
+	binarnaSlika = najvecaCelina > 0;% konvertuj iz int u binarnu
+catch err
+	fprintf("Greska u izdvajanju delova");
+end
+end
+
+
